@@ -39,7 +39,7 @@ tms_bb  = ContractMod(amd_bb', amd_bb, nmf - 2)
 
 
 # 5. 组装 Super-Ising 哈密顿量 
-t = 1.5; U = 0.25; g = 1.0 m=0.5
+t = 1.5; U = 0.25; g = 1.0; m = 0.5
 
 tms_hmt = SimplifyTerms(
      t * (tms_hop + tms_hop')
