@@ -34,8 +34,7 @@ amd_f1f1 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 2)
 amd_f1b = GetFermionSMod(nmf, 2, 2) * GetBosonSMod(nmb, 1, 1) 
 amd_f0 = GetFermionSMod(nmf, 2, 1) 
 amd_f1 = GetFermionSMod(nmf, 2, 2) 
-tms_n0 = ContractMod(amd_f0', amd_f0, 0)  # f0† f0
-tms_n1 = ContractMod(amd_f1', amd_f1, 0)  # f1† f1
+
 
 
 # 4. 缩合构造相互作用项 (ContractMod)[cite: 1]
