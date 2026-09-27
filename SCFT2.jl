@@ -29,6 +29,7 @@ end
 amd_f0f0 = GetFermionSMod(nmf, 2, 1) * GetFermionSMod(nmf, 2, 1)  # f0-f0 作用[cite: 1]
 amd_f1f0 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 1)  # f1-f0 作用 (对应 σ 算符)[cite: 1]
 amd_f0b  = GetFermionSMod(nmf, 2, 1) * GetBosonSMod(nmb, 1, 1)   # f0-b 作用  (对应 χ 算符)[cite: 1]
+amd_bb = GetBosonSMod(nmb, 1, 1) * GetBosonSMod(nmb, 1, 1)
 
 # 4. 缩合构造相互作用项 (ContractMod)[cite: 1]
 tms_hop = ContractMod(amd_f0f0', amd_f0b, nmf - 2)      # 动能对转换项 \eta D_+ \eta (t 项)[cite: 1]
