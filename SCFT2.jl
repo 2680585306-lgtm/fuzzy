@@ -35,12 +35,12 @@ amd_f1b = GetFermionSMod(nmf, 2, 2) * GetBosonSMod(nmb, 1, 1)
 amd_f0 = GetFermionSMod(nmf, 2, 1) 
 amd_f1 = GetFermionSMod(nmf, 2, 2) 
 amd_b = GetBosonSMod(nmb, 1, 1)
-amd_f0f0 = GetFermionSMod(nmf, 2, 1) * GetFermionSMod(nmf, 2, 1) # f0† f0
-amd_f1f1 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 2) # f1† f1
+
+
 
 
 # 4. 缩合构造相互作用项 (ContractMod)[cite: 1]
-tms_hop = ContractMod(amd_f0f0', amd_f0b, nmf - 2)      # 动能对转换项 \eta D_+ \eta (t 项)[cite: 1]
+tms_hop = ContractMod(amd_f0f0', amd_bb, nmf - 2)    # 动能对转换项 \eta D_+ \eta (t 项)[cite: 1]
 tms_u   = ContractMod(amd_f1f0', amd_f1f0, nmf - 2)     # 标量梯度导数相互作用 n_x \nabla^2 n_x (U 项)[cite: 1]
 tms_g   = ContractMod(amd_f1b', amd_f0b, nmf - 3/2)    # Yukawa 耦合项 n_x n_b (g 项)[cite: 1]
 tms_nx = ContractMod(amd_f1', amd_f0, 0)
