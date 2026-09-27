@@ -45,15 +45,16 @@ tms_u   = ContractMod(amd_f1f0', amd_f1f0, nmf - 2)     # 标量梯度导数相�
 tms_g   = ContractMod(amd_f1b', amd_f0b, nmf - 3/2)    # Yukawa 耦合项 n_x n_b (g 项)[cite: 1]
 tms_nx = ContractMod(amd_f1', amd_f0, 0)
 tms_n1 = ContractMod(amd_f1', amd_f1, 0)  # f1† f1
-tms_nb = ContractMod(amd_b', amd_b, 0)
-tms_n2 = ContractMod(amd_f0', amd_f0, nmf - 2)      
-
+tms_nb = ContractMod(amd_b', amd_b, 0)     
+tms_f0b  = ContractMod(amd_f0b', amd_f0b, nmf - 3/2)
+tms_bb  = ContractMod(amd_bb', amd_bb, nmf - 2)
+tms_f1b  = ContractMod(amd_f1b', amd_f1b, nmf - 3/2)
 
 # 5. 组装 Super-Ising 哈密顿量 
 t = 1.5; U = 0.25; g = 1.0; m = 0.0809; p = 0.0776; q = 0.0680
 
 tms_hmt = SimplifyTerms(
-    (tms_n1 + tms_nb +tms_n2) * (tms_n1 + tms_nb +tms_n2)
+    (2 * tms_f0b + 2 * tms_f1b + tms_bb) 
     + t * (tms_hop + tms_hop')
     + U * tms_u
     + g * (tms_g + tms_g')
