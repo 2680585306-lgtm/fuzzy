@@ -34,15 +34,17 @@ amd_f0b  = GetFermionSMod(nmf, 2, 1) * GetBosonSMod(nmb, 1, 1)   # f0-b 作用  
 tms_hop = ContractMod(amd_f0f0', amd_f0b, nmf - 2)      # 动能对转换项 \eta D_+ \eta (t 项)[cite: 1]
 tms_u   = ContractMod(amd_f1f0', amd_f1f0, nmf - 2)     # 标量梯度导数相互作用 n_x \nabla^2 n_x (U 项)[cite: 1]
 tms_g   = ContractMod(amd_f1f0', amd_f0b, nmf - 3/2)    # Yukawa 耦合项 n_x n_b (g 项)[cite: 1]
+tms_bb  = ContractMod(amd_bb', amd_bb, nmf - 2)
 
 
 # 5. 组装 Super-Ising 哈密顿量 
-t = 1.5; U = 0.25; g = 1.0
+t = 1.5; U = 0.25; g = 1.0 m=0.5
 
 tms_hmt = SimplifyTerms(
      t * (tms_hop + tms_hop')
     + U * tms_u
     + g * (tms_g + tms_g')
+    + m * tms_bb
 )
 
 # 构造总角动量平方算符 L^2 
