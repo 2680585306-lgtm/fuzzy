@@ -49,6 +49,9 @@ tms_nb = ContractMod(amd_b', amd_b, 0)
 tms_f0b  = ContractMod(amd_f0b', amd_f0b, nmf - 3/2)
 tms_bb  = ContractMod(amd_bb', amd_bb, nmf - 2)
 tms_f1b  = ContractMod(amd_f1b', amd_f1b, nmf - 3/2)
+tms_pol1 = STerms(GetPolTerms(nof, 1))
+tms_pol2 = STerms(GetPolTerms(nof, 2))
+tms_pol3 = STerms(GetPolTerms(nob, 1))
 
 # 5. 组装 Super-Ising 哈密顿量 
 t = 1.5; U = 0.25; g = 1.0; m = 0.0809; p = 0.0776; q = 0.0680
@@ -58,8 +61,8 @@ tms_hmt = SimplifyTerms(
     + t * (tms_hop + tms_hop')
     + U * tms_u
     + g * (tms_g + tms_g')
-    - m * tms_n1
-    - p * tms_nb
+    - m * tms_pol2
+    - p * tms_pol3
     - q * (tms_nx + tms_nx')
 )
 
