@@ -1,93 +1,109 @@
-# SCFT.jl - 完全使用基础 SMod 构造的 Super-Ising SCFT 代码 (N_{mf} = 6)
-
 using FuzzifiED
-using FuzzifiED.Fuzzifino
+using LinearAlgebra
 
-FuzzifiED.ElementType = Float64
-≈(x, y) = abs(x - y) < √eps(Float64)
+# -------------------------------------------------------------------
+# 1. 系统参数设置 (Super-Ising SCFT)
+# -------------------------------------------------------------------
+nmf = 6                  # 费米子单粒子轨道数 N_mf
+nmb = nmf - 1            # 玻色子单粒子轨道数 N_mb = N_mf - 1 (角动量错配 1/2)
+nof = 2 * nmf            # 费米子总轨道数 (2 个 Flavor: f0, f1)
+nob = nmb                # 玻色子总轨道数 (1 个 Flavor: b)
 
-# 1. 设定系统尺寸 (N_{mf} = 6)
-nmf = 6               # 费米子单粒子轨道数
-nof = 2 * nmf         # 2 个费米子 Flavor (f0, f1)
-nmb = nmf - 1         # 玻色子单粒子轨道数
-nob = nmb             # 1 个玻色子 Flavor
+# N_mf = 6 时的 Super-Ising 临界点微扰参数 (参考论文 Table 2)
+t = 0.5
+U = 0.1
+g = 0.2
+h = 0.0662
+mu1 = 0.0793
+mub = 0.0615
 
-# 2. 构造守恒量子数
-qnd = [
-    GetNeSQNDiag(nof, nob),
-    GetBosonLz2SQNDiag(nof, nmb, 1) + SQNDiag(GetLz2QNDiag(nmf, 2), nob)
-]
+# -------------------------------------------------------------------
+# 2. 定义守恒量子数 (QND) 与 构造 Hilbert 空间基底
+# -------------------------------------------------------------------
+# (1) 费米子总数守恒
+qnd_N = GetNeSQNDiag(nof, nob)
 
-cfs = Dict{Int64, SConfs}()
-for lz = 0 : 1 
-    cfs[lz] = SConfs(nof, nob, nmf, [nof, lz], qnd)
-end 
+# (2) 总角动量 Lz 守恒: 包含了 2*f0 + 2*f1 + 2*b 的角动量贡献
+# f0, f1 占据 (nmf-1)/2 的 spin，玻色子 b 占据 (nmb-1)/2 的 spin
+qnd_Lz = GetBosonLz2SQNDiag(nof, nmb, 1) + SQNDiag(GetLz2QNDiag(nmf, 2), nob)
 
-# 3. 基础单粒子/双粒子 amd (SMod) 定义
-amd_f0 = GetFermionSMod(nmf, 2, 1)    # 费米子 f0
-amd_f1 = GetFermionSMod(nmf, 2, 2)    # 费米子 f1
-amd_b  = GetBosonSMod(nmb, 1, 1)      # 玻色子 b
+qnd = [qnd_N, qnd_Lz]
 
-amd_f0f0 = amd_f0 * amd_f0 
-amd_f1f0 = amd_f1 * amd_f0 
-amd_f0b  = amd_f0 * amd_b   
-amd_bb   = amd_b  * amd_b   
+# 设定粒子数扇区 Ne = nmf (半填充)
+Ne = nof ÷ 2
 
-# 4. 相互作用项与单体项缩合 (完全使用 ContractMod)
-tms_hop = ContractMod(amd_f0f0', amd_f0b, nmf - 2)      
-tms_u   = ContractMod(amd_f1f0', amd_f1f0, nmf - 2)     
-tms_g   = ContractMod(amd_f1f0', amd_f0b, nmf - 3/2)    
+# 构造 Hilbert 空间配置
+cfs = Dict{Int, SConfs}()
+bases = Dict{Int, SBasis}()
 
-# 横向场项: f1^\dagger * f0
-tms_h   = ContractMod(amd_f1', amd_f0, 0)
-
-# 粒子数/密度项: n = c^\dagger * c 或 b^\dagger * b (J=0 缩合)
-tms_m1  = ContractMod(amd_f1', amd_f1, 0)    # f1 粒子数密度
-tms_mb  = ContractMod(amd_b',  amd_b,  0)    # 玻色子 b 粒子数密度
-
-# 总电荷平方项 N_e^2: (n_f0 + n_f1 + n_b)^2
-tms_nf0 = ContractMod(amd_f0', amd_f0, 0)
-tms_ne  = tms_nf0 + tms_m1 + tms_mb
-tms_e2  = tms_ne * tms_ne
-
-# 5. 组装 Super-Ising 哈密顿量
-t = 1.5; U = 0.25; g = 1.0
-h = 0.0662; mu1 = 0.0793; mub = 0.0615
-
-tms_hmt = SimplifyTerms(
-    1.0 * tms_e2
-    + t * (tms_hop + tms_hop')
-    + U * tms_u
-    + g * (tms_g + tms_g')
-    - h * (tms_h + tms_h')
-    - mu1 * tms_m1
-    - mub * tms_mb
-)
-
-# 构造角动量 L^2 算符
-tms_l2 = GetL2STerms(nmf, 2, nmb, 1) 
-
-# 6. 精确对角化求解
-result = []
-for lz = 0 : 1
-    bs = SBasis(cfs[lz])
-    hmt = SOperator(bs, tms_hmt)
-    hmt_mat = OpMat(hmt)
-    enrg, st = GetEigensystem(hmt_mat, 20)
-
-    l2 = SOperator(bs, tms_l2)
-    l2_mat = OpMat(l2)
-    l2_val = [ st[:, i]' * l2_mat * st[:, i] for i in eachindex(enrg) ] 
-
-    for i in eachindex(enrg)
-        push!(result, [enrg[i], l2_val[i]])
+# 扫描 Lz 扇区
+for lz in -10:10
+    # 注意：SConfs 参数需明确指定多 Flavor 结构
+    cfs[lz] = SConfs(nof, nob, nmf, [Ne, lz], qnd)
+    if length(cfs[lz]) > 0
+        bases[lz] = SBasis(cfs[lz])
     end
 end
 
-# 7. 能谱排序与打印输出
-sort!(result, by = st -> real(st[1]))
-enrg_0 = result[1][1]  
+# -------------------------------------------------------------------
+# 3. 构造算子 (SMod) 与 哈密顿量微扰项缩合
+# -------------------------------------------------------------------
+# 构造多 Flavor 的费米子与玻色子 SMod 算子
+# f0: Flavor 1, f1: Flavor 2
+amd_f0 = GetFermionSMod(nmf, 2, 1)
+amd_f1 = GetFermionSMod(nmf, 2, 2)
+amd_b  = GetBosonSMod(nmb, 1, 1)
 
-spec = [ round.([ (st[1] - enrg_0) ; st] .+ √eps(Float64), digits = 6) for st in result ] 
+# --- 算子缩合 ---
+# (a) 粒子密度项: n_e = f0^\dagger f0 + f1^\dagger f1
+tms_n0 = ContractMod(amd_f0', amd_f0, 0)
+tms_n1 = ContractMod(amd_f1', amd_f1, 0)
+tms_ne = tms_n0 + tms_n1
+tms_e2 = tms_ne * tms_ne
 
-display(permutedims(hcat(spec...)))
+# (b) 超对称跃迁项 / 动能项
+tms_hop = ContractMod(amd_f0', amd_b, 0)
+
+# (c) 玻色子与费米子相互作用项
+tms_nb = ContractMod(amd_b', amd_b, 0)
+tms_nx = ContractMod(amd_f1', amd_f0, 0) + ContractMod(amd_f0', amd_f1, 0)  # n_x = f1^\dagger f0 + f0^\dagger f1
+
+tms_u = tms_nx * tms_nx
+tms_g = tms_nx * tms_nb
+
+# (d) 组合生成总哈密顿量项
+tms_hmt = SimplifyTerms(
+    1.0 * tms_e2 +
+    t * (tms_hop + tms_hop') +
+    U * tms_u +
+    g * tms_g -
+    h * tms_nx -
+    mu1 * tms_n1 -
+    mub * tms_nb
+)
+
+# -------------------------------------------------------------------
+# 4. 对角化求解能谱
+# -------------------------------------------------------------------
+println("==========================================")
+println(" Super-Ising SCFT Spectrum (N_mf = $nmf) ")
+println("==========================================")
+
+for lz in sort(collect(keys(bases)))
+    basis = bases[lz]
+    dim = length(basis)
+    if dim == 0
+        continue
+    end
+    
+    # 将抽象项转换为矩阵并求解前 5 个特征值
+    hmt_mat = OpMat(tms_hmt, basis)
+    n_states = min(5, dim)
+    
+    vals, _ = GetEigensystem(hmt_mat, n_states)
+    
+    println("Lz = $(lz/2) | Dim = $dim | Energies:")
+    for v in vals
+        println("  ", round(real(v), digits=6))
+    end
+end
