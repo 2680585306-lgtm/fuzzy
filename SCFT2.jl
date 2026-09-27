@@ -48,7 +48,7 @@ tms_n0 = ContractMod(amd_f0', amd_f0, 0)  # f0† f0
 tms_n1 = ContractMod(amd_f1', amd_f1, 0)  # f1† f1
 
 # 5. 组装 Super-Ising 哈密顿量 
-t = 1.5; U = 0.25; g = 1.0; m = 0.0680; p = 0.0809；q = 0.0776
+t = 1.5; U = 0.25; g = 1.0; m = 0.0680; p = 0.0809; q = 0.0776
 
 tms_hmt = SimplifyTerms(
     tms_n0 + tms_n1
