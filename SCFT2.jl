@@ -31,7 +31,9 @@ amd_f1f0 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 1)  # f1-f0 作用
 amd_f0b  = GetFermionSMod(nmf, 2, 1) * GetBosonSMod(nmb, 1, 1)   # f0-b 作用  (对应 χ 算符)[cite: 1]
 amd_bb = GetBosonSMod(nmb, 1, 1) * GetBosonSMod(nmb, 1, 1)
 amd_f1f1 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 2) 
-amd_f1b  = GetFermionSMod(nmf, 2, 2) * GetBosonSMod(nmb, 1, 1) 
+amd_f1b = GetFermionSMod(nmf, 2, 2) * GetBosonSMod(nmb, 1, 1) 
+amd_f0 = GetFermionSMod(nmf, 2, 1) 
+amd_f1 = GetFermionSMod(nmf, 2, 2) 
 tms_n0 = ContractMod(amd_f0', amd_f0, 0)  # f0† f0
 tms_n1 = ContractMod(amd_f1', amd_f1, 0)  # f1† f1
 
@@ -43,13 +45,14 @@ tms_g   = ContractMod(amd_f1b', amd_f0b, nmf - 3/2)    # Yukawa 耦合项 n_x n_
 tms_pol1 = STerms(GetPolTerms(nof, 1))
 tms_pol2 = STerms(GetPolTerms(nof, 2))
 tms_pol3 = STerms(GetPolTerms(nob, 1))
-tms_ne = tms_n0 + tms_n1
+tms_n0 = ContractMod(amd_f0', amd_f0, 0)  # f0† f0
+tms_n1 = ContractMod(amd_f1', amd_f1, 0)  # f1† f1
 
 # 5. 组装 Super-Ising 哈密顿量 
 t = 1.5; U = 0.25; g = 1.0; m = 0.0680; p = 0.0809；q = 0.0776
 
 tms_hmt = SimplifyTerms(
-    tms_ne = tms_n0 + tms_n1
+    tms_n0 + tms_n1
     + t * (tms_hop + tms_hop')
     + U * tms_u
     + g * (tms_g + tms_g')
