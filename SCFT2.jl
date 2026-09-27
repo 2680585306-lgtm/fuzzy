@@ -37,8 +37,6 @@ amd_f1 = GetFermionSMod(nmf, 2, 2)
 amd_b = GetBosonSMod(nmb, 1, 1)
 amd_f0f0 = GetFermionSMod(nmf, 2, 1) * GetFermionSMod(nmf, 2, 1) # f0† f0
 amd_f1f1 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 2) # f1† f1
-amd_nf   = amd_f0f0 + amd_f1f1                                   # n_f 模算符
-amd_nb   = GetBosonSMod(nmb, 1, 1) * GetBosonSMod(nmb, 1, 1)     # n_b 模算符
 
 
 # 4. 缩合构造相互作用项 (ContractMod)[cite: 1]
@@ -48,15 +46,14 @@ tms_g   = ContractMod(amd_f1b', amd_f0b, nmf - 3/2)    # Yukawa 耦合项 n_x n_
 tms_nx = ContractMod(amd_f1', amd_f0, 0)
 tms_n1 = ContractMod(amd_f1', amd_f1, 0)  # f1† f1
 tms_nb = ContractMod(amd_b', amd_b, 0)
-tms_nf2 = ContractMod(amd_nf', amd_nf, nmf - 2)      
-tms_nb2 = ContractMod(amd_nb', amd_nb, nmf - 2)      # 玻色子自相互作用 \int n_b^2
-tms_nfnb = ContractMod(amd_nf', amd_nb, nmf - 2)     # 交叉相互作用项 \int n_f n_b
+tms_n2 = ContractMod(amd_f0', amd_f0, nmf - 2)      
+
 
 # 5. 组装 Super-Ising 哈密顿量 
 t = 1.5; U = 0.25; g = 1.0; m = 0.0809; p = 0.0776; q = 0.0680
 
 tms_hmt = SimplifyTerms(
-    tms_nf2 + tms_nb2 + 2.0 * tms_nfnb
+    (tms_n1 + tms_nb +tms_n2) * (tms_n1 + tms_nb +tms_n2)
     + t * (tms_hop + tms_hop')
     + U * tms_u
     + g * (tms_g + tms_g')
