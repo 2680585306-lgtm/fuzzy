@@ -56,7 +56,7 @@ t = 1.5; U = 0.25; g = 1.0; m = 0.0809; p = 0.0776; q = 0.0680
 tms_hmt = SimplifyTerms(
     (2 * tms_f0b + 2 * tms_f1b + tms_bb)  #描述电子密度涨落
     + t * (tms_hop + tms_hop')
-    + U * tms_u
+    + U * (tms_u + tms_u')
     + g * (tms_g + tms_g')
     - m * tms_n1
     - p * tms_nb
