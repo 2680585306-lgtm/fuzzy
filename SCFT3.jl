@@ -62,8 +62,8 @@ tms_hmt = SimplifyTerms(
     + t * (tms_hop + tms_hop')
     + U * tms_u
     + g * (tms_g + tms_g')
-    - m * tms_pol2
-    - p * tms_pol3
+    - m * tms_n1
+    - p * tms_nb
     - q * (tms_nx + tms_nx')
 )
 
