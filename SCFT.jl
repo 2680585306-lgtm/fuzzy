@@ -1,5 +1,4 @@
-# model.jl
-# 3D Super-Ising 超对称共形场论（SCFT）能谱计算 (N_{mf} = 7 )
+# SCFT.jl - 完全使用基础 SMod 构造的 Super-Ising SCFT 代码 (N_{mf} = 6)
 
 using FuzzifiED
 using FuzzifiED.Fuzzifino
@@ -7,59 +6,79 @@ using FuzzifiED.Fuzzifino
 FuzzifiED.ElementType = Float64
 ≈(x, y) = abs(x - y) < √eps(Float64)
 
-# 1. 设定系统尺寸 (改为 N_{mf} = 7 以避免内存溢出崩溃)[cite: 1, 4]
-nmf = 7               # 费米子单粒子轨道数 N_{mf} = 7[cite: 1, 4]
-nof = 2 * nmf         # 2 个费米子 Flavor (f0, f1)，总费米子轨道数 = 14[cite: 4]
-nmb = nmf - 1         # 玻色子单粒子轨道数 N_{mb} = 6[cite: 4]
-nob = nmb             # 1 个玻色子 Flavor[cite: 4]
+# 1. 设定系统尺寸 (N_{mf} = 6)
+nmf = 6               # 费米子单粒子轨道数
+nof = 2 * nmf         # 2 个费米子 Flavor (f0, f1)
+nmb = nmf - 1         # 玻色子单粒子轨道数
+nob = nmb             # 1 个玻色子 Flavor
 
-# 2. 构造守恒量子数 (电荷 U(1)_e 与角动量 L_z)[cite: 4]
+# 2. 构造守恒量子数
 qnd = [
     GetNeSQNDiag(nof, nob),
     GetBosonLz2SQNDiag(nof, nmb, 1) + SQNDiag(GetLz2QNDiag(nmf, 2), nob)
 ]
 
-# 生成指定扇区的基底构型：总电荷数 N_e = N_{mf}，分别求解 L_z = 0 和 L_z = 1/2[cite: 4]
 cfs = Dict{Int64, SConfs}()
 for lz = 0 : 1 
-    cfs[lz] = SConfs(nof, nob, nmf, [nof, lz], qnd)
+    cfs[lz] = SConfs(nof, nob, nmf, [nmf, lz], qnd)
 end 
 
-# 3. 构造微观模算符 (SMod)[cite: 4]
-amd_f0f0 = GetFermionSMod(nmf, 2, 1) * GetFermionSMod(nmf, 2, 1) 
-amd_f1f0 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 1) 
-amd_f0b  = GetFermionSMod(nmf, 2, 1) * GetBosonSMod(nmb, 1, 1)   
-amd_f1f1 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 2)  
-amd_bb   = GetBosonSMod(nmb, 1, 1)   * GetBosonSMod(nmb, 1, 1)   
+# ==============================================================================
+# 3. 基础单粒子/双粒子 amd (SMod) 定义
+# ==============================================================================
 
-# 4. 缩合构造相互作用项 (ContractMod)[cite: 4]
+# 单粒子算符 (1-body SMod)
+amd_f0 = GetFermionSMod(nmf, 2, 1)    # 费米子 f0
+amd_f1 = GetFermionSMod(nmf, 2, 2)    # 费米子 f1
+amd_b  = GetBosonSMod(nmb, 1, 1)      # 玻色子 b
+
+# 双粒子算符 (2-body SMod)
+amd_f0f0 = amd_f0 * amd_f0 
+amd_f1f0 = amd_f1 * amd_f0 
+amd_f0b  = amd_f0 * amd_b   
+amd_bb   = amd_b  * amd_b   
+
+# ==============================================================================
+# 4. 相互作用项与单体项缩合 (完全使用 ContractMod)
+# ==============================================================================
+
+# (1) 相互作用二体项
 tms_hop = ContractMod(amd_f0f0', amd_f0b, nmf - 2)      
 tms_u   = ContractMod(amd_f1f0', amd_f1f0, nmf - 2)     
 tms_g   = ContractMod(amd_f1f0', amd_f0b, nmf - 3/2)    
 
-tms_h   = STerms(GetF1F0STerms(nmf, 2, 1, 2))            
-tms_m1  = STerms(GetFermionNTerms(nmf, 2, 2, nob))       
-tms_mb  = STerms(GetBosonNTerms(nof, nmb, 1, 1))         
-tms_e2  = GetE2STerms(nmf, 2, nmb, 1)                    
+# (2) 横向场项: f1^\dagger * f0 (单体混合)
+tms_h   = ContractMod(amd_f1', amd_f0, 0)
 
-# 5. 组装 Super-Ising 哈密顿量 (使用论文 Table 2 中 N_{mf}=7 的参数)[cite: 1, 4]
+# (3) 粒子数/密度项: n = c^\dagger * c 或 b^\dagger * b (J=0 缩合)
+tms_m1  = ContractMod(amd_f1', amd_f1, 0)    # f1 粒子数密度
+tms_mb  = ContractMod(amd_b',  amd_b,  0)    # 玻色子 b 粒子数密度
+
+# (4) 总电荷平方项 N_e^2: (n_f0 + n_f1 + n_b)^2
+tms_nf0 = ContractMod(amd_f0', amd_f0, 0)
+tms_ne  = tms_nf0 + tms_m1 + tms_mb
+tms_e2  = tms_ne * tms_ne
+
+# ==============================================================================
+# 5. 组装 Super-Ising 哈密顿量与计算
+# ==============================================================================
 t = 1.5; U = 0.25; g = 1.0
-h = 0.0698; mu1 = 0.0774; mub = 0.0722   # <--- 更新为 N_{mf}=7 的最佳参数[cite: 1, 4]
+h = 0.0662; mu1 = 0.0793; mub = 0.0615[cite: 1]
 
 tms_hmt = SimplifyTerms(
     1.0 * tms_e2
     + t * (tms_hop + tms_hop')
     + U * tms_u
     + g * (tms_g + tms_g')
-    - h * tms_h
+    - h * (tms_h + tms_h')
     - mu1 * tms_m1
     - mub * tms_mb
 )
 
-# 构造总角动量平方算符 L^2[cite: 4]
+# 构造角动量 L^2 算符
 tms_l2 = GetL2STerms(nmf, 2, nmb, 1) 
 
-# 6. 精确对角化 (ED) 求解前 20 个低能态[cite: 4]
+# 6. 对角化求解
 result = []
 for lz = 0 : 1
     bs = SBasis(cfs[lz])
@@ -76,7 +95,7 @@ for lz = 0 : 1
     end
 end
 
-# 7. 能谱排序与输出[cite: 4]
+# 7. 能谱输出
 sort!(result, by = st -> real(st[1]))
 enrg_0 = result[1][1]  
 
