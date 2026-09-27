@@ -54,7 +54,7 @@ tms_hmt = SimplifyTerms(
     + g * (tms_g + tms_g')
     - m * tms_n1
     - p * tms_nb
-    - q * (tms_nx +tms_nx'）
+    - q * (tms_nx +tms_nx')
 )
 
 # 构造总角动量平方算符 L^2 
