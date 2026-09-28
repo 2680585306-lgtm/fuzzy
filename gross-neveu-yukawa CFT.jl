@@ -26,7 +26,7 @@ end
 
 # 5. 组装 Super-Ising 哈密顿量 
 FuzzifiED.ObsNormRadSq = Float64(nmf)
-t = 1.5; U = 0.5; g = 1.0; m = 0.0793; p = 0.0615; q = 0.0662
+t = 1.5; U = 0.25; g = 1.0; m = 0.0793; p = 0.0615; q = 0.0662
 
 f0 = GetFermionSObs(nmf, 2, 1)
 f1 = GetFermionSObs(nmf, 2, 2)
