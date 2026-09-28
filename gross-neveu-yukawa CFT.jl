@@ -74,7 +74,7 @@ tms_int = SimplifyTerms(
 
 tms_hmt = SimplifyTerms(
     tms_int
-    - q * GetIntegral(nx) - m * GetIntegral(n1) - p * GetIntegral(nb0) - p * GetIntegral(nb1),
+    - q * GetIntegral(nx) - m * GetIntegral(n1) - p * GetIntegral(nb0),
 )
 
 
