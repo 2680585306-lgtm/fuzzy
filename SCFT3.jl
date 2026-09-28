@@ -8,7 +8,7 @@ FuzzifiED.ElementType = Float64
 ≈(x, y) = abs(x - y) < √eps(Float64)
 
 # 1. 设定系统尺寸与单粒子轨道数[cite: 1]
-nmf = 9              # 费米子单粒子轨道数 N_{mf} = 2q + 1 (取 N_{mf} = 9)[cite: 1]
+nmf = 6              # 费米子单粒子轨道数 N_{mf} = 2q + 1 (取 N_{mf} = 9)[cite: 1]
 nof = 2 * nmf         # 2 个费米子 Flavor (f0 与 f1)，总费米子轨道数为 2 * N_{mf}[cite: 1]
 nmb = nmf - 1         # 玻色子单粒子轨道数 N_{mb} = 2q (角动量与费米子相差 1/2)[cite: 1]
 nob = nmb             # 1 个玻色子 Flavor[cite: 1]
