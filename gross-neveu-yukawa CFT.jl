@@ -26,7 +26,7 @@ end
 
 # 5. 组装 Super-Ising 哈密顿量 
 FuzzifiED.ObsNormRadSq = Float64(nmf)
-t = 1.5; U = 0.25; g = 1.0; m = 0.0793; p = 0.0615; q = 0.0662
+t = 1.5; U = 0.5; g = 1.0; m = 0.0793; p = 0.0615; q = 0.0662
 
 f0 = GetFermionSObs(nmf, 2, 1)
 f1 = GetFermionSObs(nmf, 2, 2)
@@ -68,13 +68,13 @@ tms_int = SimplifyTerms(
         t * tms_hop1; t * tms_hop1';
         t * tms_hop2; t * tms_hop2';
         U * (GetIntegral(nx * Laplacian(nx)));
-        g * (GetIntegral(nx * nb0));       # 补充缺失的逗号
+        g * (GetIntegral(nx * nb0));       
         g * (GetIntegral(nx * nb1))],
 )
 
 tms_hmt = SimplifyTerms(
     tms_int
-    - q * GetIntegral(nx) - m * GetIntegral(n1) - p * GetIntegral(nb0),
+    - q * GetIntegral(nx) - m * GetIntegral(n1) - p * GetIntegral(nb0) - p * GetIntegral(nb1),
 )
 
 
