@@ -91,7 +91,7 @@ tms_int = SimplifyTerms(
 		t * tms_hop1; t * tms_hop1';
         t * tms_hop2; t * tms_hop2';
 		U * (GetIntegral(nx * Laplacian(nx)));
-		g * (GetIntegral(nx * nb0))
+		g * (GetIntegral(nx * nb0));
         g * (GetIntegral(nx * nb1))],
 )
 # Normal-ordered quartic interactions. Each of the four operators has a
@@ -116,7 +116,7 @@ tms_hmt = SimplifyTerms(
 ) =#
 
 # 构造总角动量平方算符 L^2 
-tms_l2 = GetL2STerms(nmf, 2, nmb, 1) 
+tms_l2 = GetL2STerms(nmf, 2, nmb, 2) 
 
 # 6. 精确对角化 (ED) 求解前 30 个低能态
 result = []
