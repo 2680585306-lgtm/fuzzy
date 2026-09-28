@@ -8,7 +8,7 @@ FuzzifiED.ElementType = Float64
 ≈(x, y) = abs(x - y) < √eps(Float64)
 
 # 1. 设定系统尺寸与单粒子轨道数[cite: 1]
-nmf = 9               # 费米子单粒子轨道数 N_{mf} = 2q + 1 (取 N_{mf} = 9)[cite: 1]
+nmf = 6               # 费米子单粒子轨道数 N_{mf} = 2q + 1 (取 N_{mf} = 9)[cite: 1]
 nof = 2 * nmf         # 2 个费米子 Flavor (f0 与 f1)，总费米子轨道数为 2 * N_{mf}[cite: 1]
 nmb = nmf - 1         # 玻色子单粒子轨道数 N_{mb} = 2q (角动量与费米子相差 1/2)[cite: 1]
 nob = nmb             # 1 个玻色子 Flavor[cite: 1]
@@ -25,7 +25,7 @@ for lz = 0 : 1
     cfs[lz] = SConfs(nof, nob, nmf, [nmf, lz], qnd)
 end 
  
-# 3. 构造微观模算符 (SMod)[cite: 1]
+#= # 3. 构造微观模算符 (SMod)[cite: 1]
 amd_f0f0 = GetFermionSMod(nmf, 2, 1) * GetFermionSMod(nmf, 2, 1)  # f0-f0 作用[cite: 1]
 amd_f1f0 = GetFermionSMod(nmf, 2, 2) * GetFermionSMod(nmf, 2, 1)  # f1-f0 作用 (对应 σ 算符)[cite: 1]
 amd_f0b  = GetFermionSMod(nmf, 2, 1) * GetBosonSMod(nmb, 1, 1)   # f0-b 作用  (对应 χ 算符)[cite: 1]
@@ -35,10 +35,6 @@ amd_f1b = GetFermionSMod(nmf, 2, 2) * GetBosonSMod(nmb, 1, 1)
 amd_f0 = GetFermionSMod(nmf, 2, 1) 
 amd_f1 = GetFermionSMod(nmf, 2, 2) 
 amd_b = GetBosonSMod(nmb, 1, 1)
-
-
-
-
 # 4. 缩合构造相互作用项 (ContractMod)[cite: 1]
 tms_hop = ContractMod(amd_f0f0', amd_bb, nmf - 2)    # 动能对转换项 \eta D_+ \eta (t 项)[cite: 1]
 tms_u   = ContractMod(amd_f1f0', amd_f1f0, nmf - 2)     # 标量梯度导数相互作用 n_x \nabla^2 n_x (U 项)[cite: 1]
@@ -48,24 +44,59 @@ tms_n1 = ContractMod(amd_f1', amd_f1, 0)
 tms_nb = ContractMod(amd_b', amd_b, 0)     
 tms_f0b  = ContractMod(amd_f0b', amd_f0b, nmf - 3/2)
 tms_bb  = ContractMod(amd_bb', amd_bb, nmf - 2)
-tms_f1b  = ContractMod(amd_f1b', amd_f1b, nmf - 3/2)
-tms_pol1 = STerms(GetPolTerms(nof, 1))
-tms_pol2 = STerms(GetPolTerms(nof, 2))
-tms_pol3 = STerms(GetPolTerms(nob, 1))
-tms_n2 = ContractMod(amd_f0', amd_f0, 0)  
+tms_f1b  = ContractMod(amd_f1b', amd_f1b, nmf - 3/2) =#
 
 # 5. 组装 Super-Ising 哈密顿量 
-t = 1.5; U = 0.25; g = 1.0; m = 0.0809; p = 0.0776; q = 0.0680
+FuzzifiED.ObsNormRadSq = Float64(nmf)
+t = 1.5; U = 0.25; g = 1.0; m = 0.0793; p = 0.0615; q = 0.0662
+#h=0.0662,mu1=0.0793,mub=0.0615
+# Local fields include 1/R. Flavour 1 is the paper's f_0.
+f0 = GetFermionSObs(nmf, 2, 1)
+f1 = GetFermionSObs(nmf, 2, 2)
+b  = GetBosonSObs(nmb, 1, 1)
+n0 = StoreComps(f0' * f0)
+n1 = StoreComps(f1' * f1)
+nb = StoreComps(b' * b)
+nx = StoreComps(f0' * f1 + f1' * f0)
+nr = StoreComps(n0 + n1 + nb)
+# Match the derivative to the spin-weight convention of the installed version.
+eta = StoreComps(f0' * b)
+@assert abs(eta.s2)==1 "eta must have spin weight +/-1/2"
+Deta = let e=eta, R=sqrt(nmf)
+	SSphereObs(-e.s2, e.l2m,
+		(l2, m2) -> (-e.s2*(l2+1)/(2R)) * e.get_comp(l2, m2))
+end
+pair_obs = eta * Deta
+@assert pair_obs.s2==0 "Pair conversion must be a rotational scalar"
+#as_sterms(xs) = STerm[STerm(x.coeff,copy(x.cstr)) for x in xs]
+tms_hop = SimplifyTerms((GetIntegral(pair_obs)))
 
+tms_int = SimplifyTerms(
+	[(GetIntegral(nr * nr));
+		t * tms_hop; t * tms_hop';
+		U * (GetIntegral(nx * Laplacian(nx)));
+		g * (GetIntegral(nx * nb))],
+)
+# Normal-ordered quartic interactions. Each of the four operators has a
+# (creation/annihilation flag, orbital) pair, so its cstr has length 8.
+# Add the independently specified one-body couplings AFTER this filter.
 tms_hmt = SimplifyTerms(
-    (tms_n1 + tms_nb + tms_n2) * (tms_n1 + tms_nb + tms_n2) #描述电子密度涨落
+	#filter(tm -> length(tm.cstr)==8, tms_int)
+	tms_int
+	- q * GetIntegral(nx) - m * GetIntegral(n1) - p * GetIntegral(nb),
+)
+
+
+
+#= tms_hmt = SimplifyTerms(
+    (2 * tms_f0b + 2 * tms_f1b + tms_bb)  #描述电子密度涨落
     + t * (tms_hop + tms_hop')
-    + U * (tms_u + tms_u')
+    + U * tms_u
     + g * (tms_g + tms_g')
     - m * tms_n1
     - p * tms_nb
     - q * (tms_nx + tms_nx')
-)
+) =#
 
 # 构造总角动量平方算符 L^2 
 tms_l2 = GetL2STerms(nmf, 2, nmb, 1) 
@@ -76,7 +107,7 @@ for lz = 0 : 1
     bs = SBasis(cfs[lz])
     hmt = SOperator(bs, tms_hmt)
     hmt_mat = OpMat(hmt)
-    enrg, st = GetEigensystem(hmt_mat, 30)
+    enrg, st = GetEigensystem(hmt_mat, 10)
 
     l2 = SOperator(bs, tms_l2)
     l2_mat = OpMat(l2)
@@ -90,8 +121,9 @@ end
 # 7. 能谱排序与输出
 sort!(result, by = st -> real(st[1]))
 enrg_0 = result[1][1]  # 单位算符 \mathbb{I} 的真空能量 (Δ = 0)[cite: 1]
+enrg_T = filter(st -> abs(st[2]-6)<1e-4, result)[2][1]
 
 # 导出 [能量间隔 (E - E_0), 原始能量 E, 角动量 L^2][cite: 1]
-spec = [ round.([ (st[1] - enrg_0) ; st] .+ √eps(Float64), digits = 6) for st in result ] 
+spec = [ round.([ 3*(st[1] - enrg_0)/(enrg_T-enrg_0) ; st] .+ √eps(Float64), digits = 6) for st in result ] 
 
 display(permutedims(hcat(spec...)))
