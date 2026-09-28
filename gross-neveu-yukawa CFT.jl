@@ -8,7 +8,7 @@ FuzzifiED.ElementType = Float64
 ≈(x, y) = abs(x - y) < √eps(Float64)
 
 # 1. 设定系统尺寸与单粒子轨道数[cite: 1]
-nmf = 6               # 费米子单粒子轨道数 N_{mf} = 2q + 1 (取 N_{mf} = 9)[cite: 1]
+nmf = 9               # 费米子单粒子轨道数 N_{mf} = 2q + 1 (取 N_{mf} = 9)[cite: 1]
 nof = 2 * nmf         # 2 个费米子 Flavor (f0 与 f1)，总费米子轨道数为 2 * N_{mf}[cite: 1]
 nmb = nmf - 1         # 玻色子单粒子轨道数 N_{mb} = 2q (角动量与费米子相差 1/2)[cite: 1]
 nob = 2 * nmb             # 2 个玻色子 Flavor[cite: 1]
@@ -64,7 +64,7 @@ nr = StoreComps(n0 + n1 + nb0 +nb1)
 # Match the derivative to the spin-weight convention of the installed version.
 eta1 = StoreComps(f0' * b0)
 @assert abs(eta1.s2)==1 "eta must have spin weight +/-1/2"
-Deta = let e=eta1, R=sqrt(nmf)
+Deta1 = let e=eta1, R=sqrt(nmf)
 	SSphereObs(-e.s2, e.l2m,
 		(l2, m2) -> (-e.s2*(l2+1)/(2R)) * e.get_comp(l2, m2))
 end
@@ -76,8 +76,8 @@ Deta = let e=eta2, R=sqrt(nmf)
 		(l2, m2) -> (-e.s2*(l2+1)/(2R)) * e.get_comp(l2, m2))
 end
 
-pair_obs1 = eta1 * Deta
-pair_obs2 = eta2 * Deta
+pair_obs1 = eta1 * Deta1
+pair_obs2 = eta2 * Deta2
 @assert pair_obs1.s2==0 "Pair conversion must be a rotational scalar"
 #as_sterms(xs) = STerm[STerm(x.coeff,copy(x.cstr)) for x in xs]
 @assert pair_obs2.s2==0 "Pair conversion must be a rotational scalar"
