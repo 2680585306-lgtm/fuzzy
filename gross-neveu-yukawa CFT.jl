@@ -124,7 +124,7 @@ for lz = 0 : 1
     bs = SBasis(cfs[lz])
     hmt = SOperator(bs, tms_hmt)
     hmt_mat = OpMat(hmt)
-    enrg, st = GetEigensystem(hmt_mat, 10)
+    enrg, st = GetEigensystem(hmt_mat, 20)
 
     l2 = SOperator(bs, tms_l2)
     l2_mat = OpMat(l2)
