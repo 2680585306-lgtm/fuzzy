@@ -16,7 +16,7 @@ nob = 2 * nmb             # 2 个玻色子 Flavor[cite: 1]
 # 2. 构造守恒量子数 (电荷 U(1)_e 与角动量 L_z)[cite: 1]
 qnd = [
     GetNeSQNDiag(nof, nob),
-    GetBosonLz2SQNDiag(nof, nmb, 1) + SQNDiag(GetLz2QNDiag(nmf, 2), nob)
+    GetBosonLz2SQNDiag(nof, nmb, 2) + SQNDiag(GetLz2QNDiag(nmf, 2), nob)
 ]
 
 # 生成指定扇区的基底构型：总电荷数 N_e = N_{mf}，分别求解 L_z = 0 和 L_z = 1/2[cite: 1]
@@ -71,7 +71,7 @@ end
 
 eta2 = StoreComps(f0' * b1)
 @assert abs(eta2.s2)==1 "eta must have spin weight +/-1/2"
-Deta = let e=eta2, R=sqrt(nmf)
+Deta2 = let e=eta2, R=sqrt(nmf)
 	SSphereObs(-e.s2, e.l2m,
 		(l2, m2) -> (-e.s2*(l2+1)/(2R)) * e.get_comp(l2, m2))
 end
