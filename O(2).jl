@@ -25,7 +25,7 @@ qnd = [
 
 # 生成指定扇区的基底构型：总电荷数 N_e = N_{mf}
 # 由于 +/- q 严格简并，只求解 sz >= 0 扇区
-max_sz = 1            # 低能态主要分布在 sz = 0 (标量单态) 和 sz = 1 (双重态)；如需更高激发可设为 2
+max_sz = 4            # 低能态主要分布在 sz = 0 (标量单态) 和 sz = 1 (双重态)；如需更高激发可设为 2
 cfs = Dict{Tuple{Int64, Int64}, SConfs}()
 for lz in 0 : 1 
     for sz in 0 : max_sz
