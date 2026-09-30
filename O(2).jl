@@ -1,6 +1,6 @@
 using FuzzifiED
 using FuzzifiED.Fuzzifino
-
+using LinearAlgebra
 FuzzifiED.ElementType = Float64
 ≈(x, y) = abs(x - y) < √eps(Float64)
 
@@ -25,11 +25,15 @@ qnd = [
 
 # 生成指定扇区的基底构型：总电荷数 N_e = N_{mf}
 # 由于 +/- q 严格简并，只求解 sz >= 0 扇区
-max_sz = 4            # 低能态主要分布在 sz = 0 (标量单态) 和 sz = 1 (双重态)；如需更高激发可设为 2
+max_sz = 2            # 低能态主要分布在 sz = 0 (标量单态) 和 sz = 1 (双重态)；如需更高激发可设为 2
 cfs = Dict{Tuple{Int64, Int64}, SConfs}()
 for lz in 0 : 1 
     for sz in 0 : max_sz
-        cfs[(lz, sz)] = SConfs(nof, nob, nmf, [nmf, lz, sz], qnd)
+        if mod(lz, 2) ==0
+            cfs[(lz, 2sz)] = SConfs(nof, nob, nmf, [nmf, lz, 2*sz], qnd)
+        else
+            cfs[(lz, 2sz+1)] = SConfs(nof, nob, nmf, [nmf, lz, Int(2*sz+1)], qnd)
+        end
     end
 end 
 
@@ -85,11 +89,77 @@ tms_hmt = SimplifyTerms(
 
 tms_l2 = GetL2STerms(nmf, 2, nmb, 2) 
 
-# 4. 精确对角化 (ED) 求解低能态并测量量子数
+# 4. 构造 O(2) 生成元算符 
+function on_C2_terms( nmb::Int, N::Int;)
+
+    @assert N >= 2
+
+    # ------------------------------------------------------------
+    # Transformation from real O(N) basis to the circular basis
+    #
+    # c = U b
+    #
+    # for every pair:
+    #   c_+ = (b_1 - i b_2)/sqrt(2)
+    #   c_- = (b_1 + i b_2)/sqrt(2)
+    #
+    # For odd N, the last flavour remains unchanged.
+    # ------------------------------------------------------------
+
+    U = Matrix{ComplexF64}(I, N, N)
+    for k in 1:div(N, 2)
+        i = 2k - 1
+        j = 2k
+        U[i:j, i:j] =
+        ComplexF64[
+                    1  -im
+                    1   im
+                ] / sqrt(2)
+    end
+
+    # ------------------------------------------------------------
+    # C2 = - sum_{a<b} A_ab^2
+    # ------------------------------------------------------------
+
+    terms = STerm[]
+
+    for a in 1:(N-1), b in (a+1):N
+
+        # Real antisymmetric generator
+        M = zeros(ComplexF64, N, N)
+
+        M[a, b] =  1
+        M[b, a] = -1
+
+        # If c = U b, then
+        #
+        #     b† M b = c† (U M U†) c
+        #
+        Mc = U * M * U'
+
+        Aab = GetBosonPolSTerms(nmb, N, Mc)
+
+        # Q_ab = -i A_ab
+        #
+        # therefore
+        #
+        # Q_ab^2 = - A_ab^2
+        append!(terms, -(Aab * Aab))
+    end
+
+    tms_c2 = SimplifyTerms(terms)
+
+    return SimplifyTerms(tms_c2)
+end
+# N=2 
+N=2
+tms_c2 = on_C2_terms(nmb, N)
+# 5. 精确对角化 (ED) 求解低能态并测量量子数
 result = []
 n_states = 10  # 单扇区求解 10 个态[cite: 1]
 
 for (lz, sz) in sort(collect(keys(cfs)))
+    @show lz, sz
     bs = SBasis(cfs[(lz, sz)])
     hmt = SOperator(bs, tms_hmt)
     hmt_mat = OpMat(hmt)
@@ -101,18 +171,25 @@ for (lz, sz) in sort(collect(keys(cfs)))
     l2_val = [ real(st[:, i]' * (l2_mat * st[:, i])) for i in eachindex(enrg) ]
 
     # 在该扇区内所有构型均具有确定的 Sz = sz，其 Casimir C_O(2) = Sz^2 严格等于 sz^2
-    c_val = fill(Float64(sz^2), length(enrg))
+    #c_val = fill(Float64(sz^2), length(enrg))
+    c2_op = SOperator(bs, tms_c2)
+    c2_mat = OpMat(c2_op)
+    c2_val = [ real(st[:, i]' * c2_mat * st[:, i]) for i in eachindex(enrg) ]
 
     for i in eachindex(enrg)
-        push!(result, [enrg[i], l2_val[i], c_val[i], lz, sz])
+        push!(result, [enrg[i], l2_val[i], c2_val[i], lz, sz])
     end
 end
 
-# 5. 能谱排序与定标输出
+# 6. 能谱排序与定标输出
 sort!(result, by = st -> real(st[1]))
 enrg_0 = result[1][1]  # 真空能量 (Δ = 0)[cite: 1]
+enrg_T = filter(st -> abs(st[2]-6)<1e-4 && abs(st[3]-0)<1e-4, result)[1][1]
+spec = [([3 * (st[1] - enrg_0) / (enrg_T - enrg_0); st]) for st in result]
+display(permutedims(hcat(spec...)))
 
-# 获取第一个 L^2 ≈ 6 的态 (能动张量 T，位于 sz = 0 扇区)[cite: 1]
+
+#= # 获取第一个 L^2 ≈ 6 的态 (能动张量 T，位于 sz = 0 扇区)[cite: 1]
 T_candidates = filter(st -> abs(st[2] - 6) < 1e-3, result)
 if !isempty(T_candidates)
     enrg_T = T_candidates[1][1]
@@ -135,4 +212,4 @@ if !isempty(T_candidates)
 else
     println("未找到 L^2 = 6 的态，输出原始测量数据 [E, L^2, C_O(2), 2*Lz, Sz]：")
     display(result)
-end
+end =#
