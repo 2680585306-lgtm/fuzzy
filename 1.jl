@@ -56,8 +56,8 @@ Deta2 = let e = eta2, R = sqrt(nmf)
 end
 
 
-pair_obs_chiral1 = eta0 * Deta1
-pair_obs_chiral2 = eta1 * Deta0
+pair_obs_chiral1 = eta1 * Deta2
+pair_obs_chiral2 = eta2 * Deta1
 
 tms_hop_chiral1 = SimplifyTerms(GetIntegral(pair_obs_chiral1))
 tms_hop_chiral2 = SimplifyTerms(GetIntegral(pair_obs_chiral2))
