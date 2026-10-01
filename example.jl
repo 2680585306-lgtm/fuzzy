@@ -36,7 +36,7 @@ end
 
 # 3. 组装 Super-Ising 哈密顿量 (手征玻色子基底 bp, bm)[cite: 1]
 FuzzifiED.ObsNormRadSq = Float64(nmf)
-t = 1.5; U = 0.25; g = 1.0; m = 0.0805; p = 0.0602; q = 0.0671
+t = 1.5; U = 0.25; g = 1.0; m = 0.14293813493675367; p = 0.1418; q =  0.08079522764547574
 f0 = GetFermionSObs(nmf, 2, 1)
 f1 = GetFermionSObs(nmf, 2, 2)
 bp = GetBosonSObs(nmb, 2, 1)  # 手征玻色子 b_+ (Sz = +1)
