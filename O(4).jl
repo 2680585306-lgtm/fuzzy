@@ -27,7 +27,7 @@ qnd = [
     sz_sqnd
 ]
 
-# 3. 构造微观两体与单体微观算符 (仅执行一次)
+# 3. 构造微观两体与单体微观算符
 den_e = StoreComps(GetFerDensitySObs(nmf, 2) + GetBosDensitySObs(nmb, N_boson))
 tms_int_e = SimplifyTerms(GetIntegral(den_e * den_e))
 
@@ -141,7 +141,7 @@ end
 init_params = [0.0698, 0.0774, 0.0722]
 
 println("="^80)
-println("执行快速 Nelder-Mead 寻优...")
+println("执行快速 Nelder-Mead 寻优")
 println("="^80)
 
 opt_res = optimize(
@@ -153,7 +153,7 @@ opt_res = optimize(
 
 best_params = Optim.minimizer(opt_res)
 println("="^80)
-println("寻优极速完成！最优临界参数:")
+println("寻优完成，最优临界参数:")
 println("  q (hx) = ", round(best_params[1], digits=6))
 println("  m (hz) = ", round(best_params[2], digits=6))
 println("  p (μ)  = ", round(best_params[3], digits=6))
