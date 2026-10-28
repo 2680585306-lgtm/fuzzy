@@ -1,5 +1,5 @@
 # ==============================================================================
-# O(4) GNY 临界点全谱计算 (集成 O(4) 卡西米尔算符与精确共形塔识别)
+# O(4) GNY 临界点全谱计算 (集成 O(4) 卡西米尔算符测量与精确共形塔识别)
 # ==============================================================================
 
 using FuzzifiED
@@ -75,23 +75,36 @@ tms_n1 = SimplifyTerms(GetIntegral(n1))
 tms_nb = SimplifyTerms(GetIntegral(nb_tot))
 
 # ==============================================================================
-# 构造 O(4) 二阶卡西米尔算符 C_2[O(4)]
-# O(4) 生成元 J_{ab} (a,b=1..4) 是味空间的角动量生成元。
+# 4. 构造 O(N) 二阶卡西米尔算符 C_2[O(N)] (这里 N = 4 对应 O(4))
 # ==============================================================================
-# 费米子的味空间（此处按物理模型设定，实际 O(4) 作用在玻色子和规范化的费米子双线性上）
-# 为简化实现，并准确分辨模型中的多重态，我们构造等效的内部对称性平方算符。
-# 这里我们直接利用 Sz^2 以及其他守恒荷的二次型组装等效的 Casimir。
-# 为了保持你的代码框架兼容且最快运行，我们采用测量 Sz^2 (已包含在 q_val 中) 以及
-# 补充计算规范不变量的平方来近似分辨 C2 类别。
-# 更严格的做法是：C2 = 1/2 \sum_{a,b} J_{ab} J_{ab}
-# 为简单起见，我们采用你的原对角标量 q_val 并在识别器中增强判断。
-# （注：如果需要严格构建 O(4) J_{ab}，需引入 6 个 O(4) 生成元算符。在此处，我们用 L^2 和 Sz 的联合指纹已足以在 nmf=4 完全解除简并）。
+function on_C2_terms(nmb::Int, N::Int)
+    @assert N >= 2
+    U = Matrix{ComplexF64}(I, N, N)
+    for k in 1:div(N, 2)
+        i = 2k - 1
+        j = 2k
+        U[i:j, i:j] = ComplexF64[1 -im; 1 im] / sqrt(2)
+    end
+
+    terms = STerm[]
+    for a in 1:(N-1), b in (a+1):N
+        M = zeros(ComplexF64, N, N)
+        M[a, b] =  1
+        M[b, a] = -1
+        Mc = U * M * U'
+        Aab = GetBosonPolSTerms(nmb, N, Mc)
+        append!(terms, -(Aab * Aab))
+    end
+    return SimplifyTerms(terms)
+end
+
+tms_c2 = on_C2_terms(nmb, 4)
 
 # O(4) GNY 理论参考靶标
 const TARGET_SIGMA = 0.7578
 const TARGET_PSI   = 1.0436
 
-# 4. 稳健极简代价函数
+# 5. 稳健极简代价函数
 function cost(params)
     q_val, m_val, p_val = params
     tms_hmt = [tms_base; -q_val * tms_nx; -m_val * tms_n1; -p_val * tms_nb]
@@ -133,7 +146,7 @@ function cost(params)
     end
 end
 
-# 5. 执行 Nelder-Mead 寻优
+# 6. 执行 Nelder-Mead 寻优
 init_params = [0.066, 0.079, 0.061]
 println("="^95)
 println("正在针对 O(4) GNY (nmf=4) 执行参数寻优...")
@@ -142,11 +155,12 @@ best_params = Optim.minimizer(opt_res)
 println("优化完成！最佳参数 [q, m, p] = ", round.(best_params, digits=6))
 println("="^95)
 
-# 6. 使用最优参数扩展计算大尺度全谱 (支持提取大量态)
+# 7. 使用最优参数扩展计算大尺度全谱 (同时测量 O(4) Casimir 算符)
 max_sz = 2
 cfs_all   = Dict{Tuple{Int64, Int64}, SConfs}()
 bases_all = Dict{Tuple{Int64, Int64}, SBasis}()
 l2_mats_all = Dict{Tuple{Int64, Int64}, OpMat{Float64}}()
+c2_mats_all = Dict{Tuple{Int64, Int64}, OpMat{Float64}}()
 
 for lz in 0 : 1 
     for sz in 0 : max_sz
@@ -155,6 +169,7 @@ for lz in 0 : 1
         cfs_all[k] = SConfs(nof, nob, nmf, [nmf, lz, Sz_val], qnd)
         bases_all[k] = SBasis(cfs_all[k])
         l2_mats_all[k] = OpMat(SOperator(bases_all[k], tms_l2))
+        c2_mats_all[k] = OpMat(SOperator(bases_all[k], tms_c2))
     end
 end
 
@@ -169,48 +184,46 @@ for (k, bs) in bases_all
     hmt = SOperator(bs, tms_hmt_best)
     enrg, st = GetEigensystem(OpMat(hmt), n_states_full)
     l2_mat = l2_mats_all[k]
+    c2_mat = c2_mats_all[k]
+    
     l2_val = [ real(st[:, i]' * (l2_mat * st[:, i])) for i in eachindex(enrg) ]
+    c2_val = [ real(st[:, i]' * (c2_mat * st[:, i])) for i in eachindex(enrg) ]
 
     for i in eachindex(enrg)
-        push!(full_result, [enrg[i], l2_val[i], lz, Sz_val])
+        push!(full_result, [enrg[i], l2_val[i], c2_val[i], lz, Sz_val])
     end
 end
 
 sort!(full_result, by = st -> real(st[1]))
 enrg_0 = full_result[1][1] 
 
-enrg_σ = filter(st -> abs(st[2]) < 0.25 && st[4] == 0 && st[1] > enrg_0 + 1e-4, full_result)[1][1]
-T_cands = filter(st -> abs(st[2] - 6.0) < 0.35 && st[4] == 0, full_result)
+enrg_σ = filter(st -> abs(st[2]) < 0.25 && st[5] == 0 && st[1] > enrg_0 + 1e-4, full_result)[1][1]
+T_cands = filter(st -> abs(st[2] - 6.0) < 0.35 && st[5] == 0, full_result)
 enrg_T = length(T_cands) >= 2 ? T_cands[2][1] : (length(T_cands) == 1 ? T_cands[1][1] : 1.0) 
 
 # ==============================================================================
-# 全自动通用化共形塔 (Conformal Tower) 算法识别器 (包含严格的内部 O(4) 指纹比对)
+# 全自动通用化共形塔 (Conformal Tower) 算法识别器
 # ==============================================================================
-function identify_operator(L2, q, Delta)
+function identify_operator(L2, C2, q, Delta)
     L_obs = round((sqrt(1 + 4 * max(0, L2)) - 1) / 2, digits=1)
 
-    # O(4) GNY 初级算符字典 (加入内部对称性硬约束)
     primaries = [
         ("I",   0.0,          0.0, 0, "+"),
         ("σ",   TARGET_SIGMA, 0.0, 0, "-"),
         ("ψ",   TARGET_PSI,   0.5, 1, "+"),
         ("ϵ",   1.899,        0.0, 0, "+"),
-        ("J_μ", 2.00,         1.0, 0, "+"), # 这里 J_μ 其实带有 O(4) 伴随表示特征，但从阿贝尔子群投影在 q=0 和 q=2 均有分量。我们以最低分量匹配。
+        ("J_μ", 2.00,         1.0, 0, "+"),
         ("σ_T", 2.293,        0.0, 2, "-"),
         ("T_μν",3.00,         2.0, 0, "+")
     ]
 
     best_match = ""
     best_err = 100.0
-    best_P = "N/A"
+    best_P = ""
 
     for p in primaries
         p_name, p_delta, p_L, p_q, p_parity = p
         
-        # O(4) 阿贝尔降维指纹严格约束：
-        # 对于张量态 σ_T (p_q=2)，它必须严格位于 Sz=2 扇区
-        # 对于向量态 ψ (p_q=1)，必须严格位于 Sz=1 扇区
-        # 对于单态 σ, ϵ, T_μν (p_q=0)，必须严格位于 Sz=0 扇区
         if q != p_q 
             continue 
         end
@@ -228,8 +241,6 @@ function identify_operator(L2, q, Delta)
         end
 
         err = abs(Delta - (p_delta + n))
-        
-        # 动态容差
         threshold = 0.35 + 0.08 * n 
         
         if err < threshold && err < best_err
@@ -245,25 +256,26 @@ function identify_operator(L2, q, Delta)
     end
 
     if best_match == ""
-        return ("N/A", "Unknown / High Mixing")
+        return ("", "")
     else
         return (best_P, best_match)
     end
 end
 
-# 组装输出矩阵
+# 组装输出矩阵 (加入 O(4) 卡西米尔 C2 列)
 spec = [
     begin
         Delta = TARGET_SIGMA * (st[1] - enrg_0) / (enrg_σ - enrg_0)
-        P_str, op_name = identify_operator(st[2], abs(st[4]), Delta)
+        P_str, op_name = identify_operator(st[2], st[3], abs(st[5]), Delta)
         Delta_T = (enrg_T == 1.0) ? 0.0 : 3.00 * (st[1] - enrg_0) / (enrg_T - enrg_0)
         [
             round(Delta, digits = 4),
             round(Delta_T, digits = 4),
             round(st[1], digits = 6),
             round(st[2], digits = 4),
-            st[3],
+            round(st[3], digits = 2), # O(4) Casimir 数值
             st[4],
+            st[5],
             P_str,
             op_name
         ]
@@ -271,10 +283,10 @@ spec = [
 ]
 
 n_print = min(250, length(spec))
-println("="^115)
-println(" 深度探索 O(4) GNY 大尺度共形算符谱 (已集成阿贝尔对称性严格隔离约束)")
-println("  Δ(σ定标)   Δ(T定标)      能量 E        角动量 L^2      2*Lz      Sz      P(理论)    算符 / 共形塔级次")
-println("-"^115)
+println("="^120)
+println(" 深度探索 O(4) GNY 大尺度共形算符谱 (已集成卡西米尔算符 C2 输出)")
+println("  Δ(σ定标)   Δ(T定标)      能量 E        角动量 L^2    O(4) C2    2*Lz      Sz     P(理论)    算符 / 共形塔级次")
+println("-"^120)
 for i in 1:n_print
     row = spec[i]
     if row[1] > 10.5
@@ -286,10 +298,11 @@ for i in 1:n_print
         rpad(string(row[2]), 12),
         rpad(string(row[3]), 14),
         rpad(string(row[4]), 14),
-        rpad(string(row[5]), 10),
-        rpad(string(row[6]), 8),
-        rpad(string(row[7]), 10),
-        row[8]
+        rpad(string(row[5]), 11),
+        rpad(string(row[6]), 10),
+        rpad(string(row[7]), 8),
+        rpad(string(row[8]), 10),
+        row[9]
     )
 end
-println("="^115)
+println("="^120)
